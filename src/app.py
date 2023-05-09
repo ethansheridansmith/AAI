@@ -165,7 +165,7 @@ model = load_model(model_path)
 
 check_period = 3
 genre_labels = ["blues", "classical", "country", "disco", "hihop",
-                "jazz", "metal", "pop", "reggea", "rock"]
+                "jazz", "metal", "pop", "reggae", "rock"]
 
 def predict(image_data, model):
     image = img_to_array(image_data).reshape((1, 288, 432, 4))
@@ -220,9 +220,8 @@ st.title("Audio Classification App")
 
 uploaded_file = st.file_uploader("Choose an audio file", type=["wav", "mp3", "flac", "ogg"])
 
-# audio = MP3(uploaded_file)
-
 if uploaded_file is not None:
+    
     with st.spinner('Processing audio file...'):
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             temp_file.write(uploaded_file.read())
@@ -247,29 +246,31 @@ if uploaded_file is not None:
     st.image("final-spectrogram.png", use_column_width=True)
     plt.show()
 
-if st.button("Show Genre Predictions Over Time"):
-    st.subheader("Genre Predictions Over Time")
-    predictions = []
-    outcome = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+    with st.spinner('Loading genre predictions over time...'):
+            
+        st.subheader("Genre Predictions Over Time")
+        predictions = []
+        outcome = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 
-    periods = 15
-    total_chunks = math.floor(audio.info.length / periods)
+        periods = 15
+        audio = MP3(uploaded_file)
+        total_chunks = math.floor(audio.info.length / periods)
 
-    for i in range(1, total_chunks):
-        create_wav(temp_file_path, i * 10, check_period)
-        create_spectrogram("extracted.wav")
-        image_data = load_img('final-spectrogram.png', color_mode='rgba', target_size=(288, 432))
-        class_label, prediction = predict(image_data, model)
-        prediction = prediction.reshape((10,))
-        outcome = outcome + prediction
-        predictions.append(prediction)
+        for i in range(1, total_chunks):
+            create_wav(temp_file_path, i * periods, check_period)
+            create_spectrogram("extracted.wav")
+            image_data = load_img('final-spectrogram.png', color_mode='rgba', target_size=(288, 432))
+            class_label, prediction = predict(image_data, model)
+            prediction = prediction.reshape((10,))
+            outcome = outcome + prediction
+            predictions.append(prediction)
 
-    over_time_graph(predictions)
-    st.pyplot()
+        over_time_graph(predictions)
+        st.pyplot()
 
-    plt.clf()
+        plt.clf()
 
-    bar_chart_predictions(outcome)
-    st.pyplot()
+        bar_chart_predictions(outcome)
+        st.pyplot()
 
-    plt.clf()
+        plt.clf()
