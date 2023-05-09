@@ -31,8 +31,8 @@ model_path = "genre_model_98.h5"
 model = load_model(model_path)
 
 check_period = 3  # Duration for audio extraction
-genre_labels = ["Genre1", "Genre2", "Genre3", "Genre4", "Genre5",
-                "Genre6", "Genre7", "Genre8", "Genre9", "Genre10"]  # Replace with your genre labels
+genre_labels = ["blues", "classical", "country", "disco", "hihop",
+                "jazz", "metal", "pop", "reggea", "rock"]  # Replace with your genre labels
 
 # Predict the genres.
 def predict(image_data, model):
@@ -44,7 +44,7 @@ def predict(image_data, model):
 
 # Create our wav file for conversion to spectrogram.
 def create_wav(file_path, start, duration):
-    wav = AudioSegment.from_file(file_path)
+    wav = pydub.AudioSegment.from_file_using_temporary_files(file_path)
     start_position = 1000 * start
     wav = wav[start_position:start_position + (1000 * duration)]
     wav.export("extracted.wav", format='wav')
@@ -72,7 +72,7 @@ if uploaded_file is not None:
             temp_file.write(uploaded_file.read())
             temp_file_path = temp_file.name
 
-        create_wav(temp_file_path, 60, check_period)
+        create_wav(temp_file_path, 10, check_period)
         create_spectrogram("extracted.wav")
         image_data = load_img('final-spectrogram.png', color_mode='rgba', target_size=(288, 432))
 
