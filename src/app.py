@@ -12,11 +12,29 @@ from pydub import AudioSegment
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 import tempfile
 
+#####################
+### /\ imports /\ ###
+#####################
+
+##################
+### \/ code \/ ###
+##################
+
+# used for extracting segmetns of songs for spectogram analysis and the pydub library
 pydub.AudioSegment.converter = r"C:\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe"
+
+#############################################
+# model load function, uses f1 score as
+# custom object
+#############################################
 
 @st.cache(allow_output_mutation=True)
 def load_model(model_path):
     return tf.keras.models.load_model(model_path, custom_objects={'f1_score': f1_score})
+
+#############################################
+# score function for evaluation of the model   
+#############################################
 
 def f1_score(y_true, y_pred):
     true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
@@ -27,12 +45,26 @@ def f1_score(y_true, y_pred):
     f1_val = 2 * (precision * recall) / (precision + recall + K.epsilon())
     return f1_val
 
+#############################################
+# model is loaded, trained in previous 
+# program 
+#############################################
+
 model_path = "genre_model_98.h5"
 model = load_model(model_path)
 
-check_period = 3  # Duration for audio extraction
+############################################
+# genres defined and audio duration defined    
+############################################
+# Duration for audio extraction
+check_period = 3 
+# genre labels for classification 
 genre_labels = ["blues", "classical", "country", "disco", "hihop",
-                "jazz", "metal", "pop", "reggea", "rock"]  # Replace with your genre labels
+                "jazz", "metal", "pop", "reggea", "rock"]
+
+###############################################
+# gets the image and reshapes it 
+###############################################
 
 # Predict the genres.
 def predict(image_data, model):
