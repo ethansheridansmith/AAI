@@ -1,6 +1,6 @@
 import math
 import tempfile
-
+import concurrent.futures
 import librosa.display
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,6 +13,16 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from mutagen.mp3 import MP3
 from pydub import AudioSegment
 from tensorflow.keras.preprocessing.image import img_to_array, load_img
+from tensorflow.keras import models
+
+# #####################
+# ### /\ imports /\ ###
+# #####################
+
+# ##################
+# ### \/ code \/ ###
+# ##################
+
 
 pydub.AudioSegment.converter = r"C:\FFmpeg\bin\ffmpeg.exe"
 
@@ -23,28 +33,24 @@ pydub.AudioSegment.converter = r"C:\FFmpeg\bin\ffmpeg.exe"
 
 
 def create_model(input_shape, classes):
-    def create_step_in_model(dim, input_tensor):
-        X = Conv2D(dim, kernel_size=(3, 3), strides=(1, 1))(input_tensor)
-        X = BatchNormalization(axis=3)(X)
-        X = Activation('relu')(X)
-        return MaxPooling2D((2, 2))(X)
-
-    X_input = Input(input_shape)
-    X = X_input
-
     layer_dimensions = [8, 16, 32, 64, 128, 256]
 
+    input = Input(input_shape)
+    output = input
+
     for layer_dim in layer_dimensions:
-        X = create_step_in_model(layer_dim, X)
+        output = Conv2D(layer_dim, kernel_size=(3, 3), strides=(1, 1))(output)
+        output = BatchNormalization(axis=3)(output)
+        output = Activation('relu')(output)
+        output = MaxPooling2D((2, 2))(output)
 
-    X = Flatten()(X)
-    X = Dropout(rate=0.3)(X)
-    X = Dense(classes, activation='softmax', name=f'fc{classes}', kernel_initializer=glorot_uniform(seed=9))(X)
-    model = Model(inputs=X_input, outputs=X, name='cnn')
-    return model
+    output = Flatten()(output)
+    output = Dropout(rate=0.3)(output)
+    output = Dense(classes, activation='softmax', name=f'fc{classes}', kernel_initializer=glorot_uniform(seed=9))(output)
+
+    return Model(inputs=input, outputs=output, name='cnn')
 
 
-# Predict the genres.
 def predict(image_data, model):
     image = img_to_array(image_data).reshape((1, 288, 432, 4))
     prediction = model.predict(image / 255)
@@ -62,7 +68,7 @@ def create_wav(file, start, duration):
 
 
 # Create our spectrogram from our wav file.
-def create_spectrogram(wav_file, check_period):
+def create_spectrogram(wav_file, check_period, name):
     y, sr = librosa.load(wav_file, duration=check_period)
     mels = librosa.feature.melspectrogram(y=y, sr=sr)
 
@@ -71,10 +77,16 @@ def create_spectrogram(wav_file, check_period):
     plt.imshow(librosa.power_to_db(mels, ref=np.max))
 
     # Save the spectrogram locally for insertion into model.
-    plt.savefig('final-spectrogram.png')
+    plt.savefig(name)
 
 
-@st.cache_data
+def process_wav(chunk_index):
+    start_time = chunk_index * 10
+    create_wav(test_file, start_time, check_period)
+    create_spectrogram("extracted.wav", check_period, f"final-spectrogram-{chunk_index}.png")
+
+
+@st.cache_data(persist=True)
 def process_file(uploaded_file):
     # ... your processing code here
     # Prediction data collection.
@@ -89,10 +101,15 @@ def process_file(uploaded_file):
         audio_file = MP3(test_file)
 
     total_chunks = math.floor(audio_file.info.length / periods)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        futures = [executor.submit(process_wav, i) for i in range(1, total_chunks)]
+        concurrent.futures.wait(futures)
+
+    print('done')
+
     for i in range(1, total_chunks):
-        create_wav(test_file, i * 10, check_period)
-        create_spectrogram("extracted.wav", check_period)
-        image_data = load_img('final-spectrogram.png', color_mode='rgba', target_size=(288, 432))
+        image_data = load_img('final-spectrogram-' + str(i) + '.png', color_mode='rgba', target_size=(288, 432))
         class_label, prediction = predict(image_data, model)
         prediction = prediction.reshape((10,))
         outcome = outcome + prediction
