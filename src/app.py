@@ -1,6 +1,6 @@
 import math
 import tempfile
-import concurrent.futures
+
 import librosa.display
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,7 +13,6 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from mutagen.mp3 import MP3
 from pydub import AudioSegment
 from tensorflow.keras.preprocessing.image import img_to_array, load_img
-from tensorflow.keras import models
 
 # #####################
 # ### /\ imports /\ ###
@@ -28,9 +27,8 @@ pydub.AudioSegment.converter = r"C:\FFmpeg\bin\ffmpeg.exe"
 
 
 ###========================================================###
-###                   USEFUL FUNCTIONS                     ###
+###                        FUNCTIONS                       ###
 ###========================================================###
-
 
 def create_model(input_shape, classes):
     layer_dimensions = [8, 16, 32, 64, 128, 256]
@@ -46,7 +44,8 @@ def create_model(input_shape, classes):
 
     output = Flatten()(output)
     output = Dropout(rate=0.3)(output)
-    output = Dense(classes, activation='softmax', name=f'fc{classes}', kernel_initializer=glorot_uniform(seed=9))(output)
+    output = Dense(classes, activation='softmax', name=f'fc{classes}', kernel_initializer=glorot_uniform(seed=9))(
+        output)
 
     return Model(inputs=input, outputs=output, name='cnn')
 
@@ -102,14 +101,10 @@ def process_file(uploaded_file):
 
     total_chunks = math.floor(audio_file.info.length / periods)
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-        futures = [executor.submit(process_wav, i) for i in range(1, total_chunks)]
-        concurrent.futures.wait(futures)
-
-    print('done')
-
     for i in range(1, total_chunks):
-        image_data = load_img('final-spectrogram-' + str(i) + '.png', color_mode='rgba', target_size=(288, 432))
+        create_wav(test_file, i * 10, check_period)
+        create_spectrogram("extracted.wav", check_period, 'final-spectrogram.png')
+        image_data = load_img('final-spectrogram.png', color_mode='rgba', target_size=(288, 432))
         class_label, prediction = predict(image_data, model)
         prediction = prediction.reshape((10,))
         outcome = outcome + prediction
