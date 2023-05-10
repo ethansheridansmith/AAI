@@ -76,33 +76,34 @@ def create_spectrogram(wav_file, check_period):
 
 @st.cache_data
 def process_file(uploaded_file):
-    with st.spinner('Processing audio file...'):
-        # ... your processing code here
-        # Prediction data collection.
-        predictions = []
-        outcome = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+    # ... your processing code here
+    # Prediction data collection.
+    predictions = []
+    outcome = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 
-        progress_bar = st.progress(0)
+    progress_bar = st.progress(0)
 
-        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-            temp_file.write(uploaded_file.read())
-            test_file = temp_file.name
-            audio_file = MP3(test_file)
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        temp_file.write(uploaded_file.read())
+        test_file = temp_file.name
+        audio_file = MP3(test_file)
 
-        total_chunks = math.floor(audio_file.info.length / periods)
-        for i in range(1, total_chunks):
-            create_wav(test_file, i * 10, check_period)
-            create_spectrogram("extracted.wav", check_period)
-            image_data = load_img('final-spectrogram.png', color_mode='rgba', target_size=(288, 432))
-            class_label, prediction = predict(image_data, model)
-            prediction = prediction.reshape((10,))
-            outcome = outcome + prediction
-            predictions.append(prediction)  # model.predict returns a 2D array, we just want the first row
+    total_chunks = math.floor(audio_file.info.length / periods)
+    for i in range(1, total_chunks):
+        create_wav(test_file, i * 10, check_period)
+        create_spectrogram("extracted.wav", check_period)
+        image_data = load_img('final-spectrogram.png', color_mode='rgba', target_size=(288, 432))
+        class_label, prediction = predict(image_data, model)
+        prediction = prediction.reshape((10,))
+        outcome = outcome + prediction
+        predictions.append(prediction)  # model.predict returns a 2D array, we just want the first row
 
-            progress = i / (total_chunks - 1)
-            progress_bar.progress(progress)
+        progress = i / (total_chunks - 1)
+        progress_bar.progress(progress)
 
-        return predictions, outcome
+    st.audio(temp_file.name, format='audio/mp3')
+
+    return predictions, outcome
 
 
 ###========================================================###
@@ -110,9 +111,8 @@ def process_file(uploaded_file):
 ###========================================================###
 
 
-genre_labels = ["blues", "classical", "country", "disco", "hiphop", "jazz", "metal", "pop", "reggae", "rock"]
+genre_labels = ["Blues", "Classical", "Country", "Disco", "Hiphop", "Jazz", "Metal", "Pop", "Reggae", "Rock"]
 check_period = 3
-periods = 15
 
 model = create_model(input_shape=(288, 432, 4), classes=len(genre_labels))
 model.load_weights("genre_model_98.h5")
@@ -120,6 +120,8 @@ model.load_weights("genre_model_98.h5")
 st.title("Song Genre Classification")
 
 uploaded_file = st.file_uploader("Choose an audio file", type=["mp3"])
+
+periods = st.number_input('Check song every x seconds:', value=15, min_value=10, max_value=60)
 
 if uploaded_file is not None:
     predictions, outcome = process_file(uploaded_file)
@@ -163,8 +165,3 @@ if uploaded_file is not None:
 
     st.write(f"### Mel Spectrogram")
     st.image("final-spectrogram.png", use_column_width=True)
-
-# If you want to display model training information, add an "info" page
-if st.button("Show Model Training Info"):
-    st.subheader("Loss values and other graphs of the CNN model during training")
-    # Display your loss values and graphs here using st.pyplot() or st.write()
