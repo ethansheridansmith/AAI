@@ -245,6 +245,8 @@ if uploaded_file is not None:
     st.write(f"### Mel Spectrogram")
     st.image("final-spectrogram.png", use_column_width=True)
     plt.show()
+    
+    # save the file here as a temp file, and pass the link as t
 
     with st.spinner('Loading genre predictions over time...'):
             
@@ -253,7 +255,7 @@ if uploaded_file is not None:
         outcome = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 
         periods = 15
-        audio = MP3(uploaded_file)
+        audio = MP3(temp_file_path)
         total_chunks = math.floor(audio.info.length / periods)
 
         for i in range(1, total_chunks):
